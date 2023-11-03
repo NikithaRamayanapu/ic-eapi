@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<flow name="NewCaseTriggerFlow" doc:id="cfc43fa5-6980-4fd5-ae83-f0c7fa925b24" >
+		<salesforce:new-object-listener objectType="Case" doc:name="On New Object" doc:id="074f41e8-df81-4331-b588-b119ddf8dc08" config-ref="Salesforce_Config">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</salesforce:new-object-listener>
+		<logger level="INFO" doc:name="Logger" doc:id="0fe198bf-685d-4286-bf6f-833bc9b68097" message="#[payload]"/>
+		<error-handler ref="Error_Handler" />
+	</flow>
+	<flow name="UpdateCaseTriggerFLow" doc:id="ad3dc2db-17a4-41b4-afa7-068f233f74ff" >
+		<salesforce:modified-object-listener objectType="Case" doc:name="On Modified Object" doc:id="fa7db18f-b3e1-4998-a5b4-4629caa1efea" config-ref="Salesforce_Config">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</salesforce:modified-object-listener>
+		<logger level="INFO" doc:name="Logger" doc:id="716c6423-3afd-4c8e-9b11-1aec2a14df38" message="#[payload]"/>
+		<error-handler ref="Error_Handler" />
+	</flow>
+	<flow name="interfaceFlow1" doc:id="0a473844-baac-442e-9f3b-dfc2bea1f3f9" >
+		<db:listener table="DB1" doc:name="On Table Row" doc:id="209090aa-7104-4d67-9dc5-ed235b163c3e" config-ref="Database_Config" watermarkColumn="Id" idColumn="Id">
+			<scheduling-strategy >
+				<fixed-frequency/>
+			</scheduling-strategy>
+		</db:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="f546244b-24d6-4ef9-a094-dd84d8500617" message="#[output application/json ---payload]"/>
+		<error-handler ref="Error_Handler" />
+	</flow>
+	<flow name="interfaceFlow" doc:id="e851df80-5359-43f0-8af5-d7c7433e959d" >
+		<scheduler doc:name="Scheduler" doc:id="793a329a-2a4f-40a9-8ea2-986383ebeab1" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="2" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:name="Retrieve" doc:id="74167e7f-ce39-43b9-998b-87a16b0912ad" key="lastUpdatedDate" target="lastUpdatedDate">
+			<os:default-value ><![CDATA[0000-00-00 00:00:00]]></os:default-value>
+		</os:retrieve>
+		<db:select doc:name="Select" doc:id="9c104a0f-9bbd-4e1c-ad71-798cfacf90bf" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from freedb_nikitha.DB1 where UpdatedDate > :lastUpdatedDate;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	lastUpdatedDate: vars.lastUpdatedDate
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="73ee9d63-46a4-4ea6-a5c8-b12b6765fbc5" >
+			<when expression="#[not isEmpty(payload)]">
+				<os:store doc:name="Store" doc:id="7abf64f9-440c-422d-90c9-834d10b9ab78" key="lastUpdatedDate">
+					<os:value ><![CDATA[#[max (payload.*UpdatedDate)]]]></os:value>
+				</os:store>
+				<logger level="INFO" doc:name="Logger" doc:id="e560490c-ea1c-401b-9d34-cbcc9befd081" message="#[output application/json ---payload]"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="49987010-16ad-4250-9bbc-b405ba12d219" message="No Records found"/>
+			</otherwise>
+		</choice>
+		<error-handler ref="Error_Handler" />
+	</flow>
+</mule>

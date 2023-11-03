@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<error-handler name="Error_Handler" doc:id="7c39b16f-ad26-4649-aceb-d411645be8dc" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="1a0b8ef5-0f6c-4d28-927f-7bea69659c4d" type="ANY">
+			<ee:transform doc:name="DW Transform for Error mapping" doc:id="63bb6fff-bffa-4f16-b6ab-7b2bc7fdc9bb" >
+				<ee:variables >
+					<ee:set-variable resource="dwlScripts/v-error-response-db-error.dwl" variableName="vErrorMapping" />
+				</ee:variables>
+			</ee:transform>
+			<flow-ref doc:name="sf-common-error-response" doc:id="65903ee1-9d96-4397-adad-5ab80461a2fa" name="sf-common-error-response" />
+		</on-error-propagate>
+	</error-handler>
+	<sub-flow name="sf-common-error-response" doc:id="b0004a21-6c95-48c9-bdf1-37b5f926486a" >
+		<logger level="ERROR" doc:name="LOG Error Message" doc:id="8988880f-4355-4f11-8007-df443f07e077" message='"Error - HTTP Status Code:" #[vars.vErrorMapping.httpStatus] "Error Message Description :" #[vars.vErrorMapping.errorDescription]' />
+		<set-variable value="#[vars.vErrorMapping.httpStatus]" doc:name="Set Http Status" doc:id="f5054631-ad58-4509-86f3-b67372ff5418" variableName="httpStatus" />
+		<ee:transform doc:name="Error Response" doc:id="10cfc621-4146-497f-b3f8-e56b9110dd65" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	is_success: false,
+    errors:[
+    {
+        error_code: vars.vErrorMapping.errorCode,
+        error_message: vars.vErrorMapping.errorDescription
+    }]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>
+
+
+
+
+
+
